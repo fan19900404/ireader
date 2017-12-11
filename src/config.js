@@ -13,6 +13,8 @@ module.exports = {
         .end((err, request) => {
           const body = request.text;
           const $ = cheerio.load(body);
+          const book = $('dd h1').text();
+          const author = $('dd h3').text().replace('作者：','')
           const table = $("table a");
           const json = [];
           table.each(function(index, val) {
@@ -21,10 +23,9 @@ module.exports = {
               title: $(val).text()
             });
           });
-          console.log(json);
           res.statusCode = 200;
           res.setHeader("Content-Type", "text/json;charset=utf-8");
-          res.end(`${JSON.stringify(json)}\n`);
+          res.end(`${JSON.stringify({book,author,catalog:json})}\n`);
         });
     },
     info(url, res) {
