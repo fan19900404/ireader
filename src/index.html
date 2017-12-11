@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>一键下载小说</title>
+</head>
+
+<body>
+  <script>
+    if (typeof Promise === 'undefined') {
+      document.write('<div>抱歉不支持你的浏览器，请升级</div>');
+    } else {
+      window.onload = function () {
+        var $root = document.getElementById('root');
+        $root.style = "display:block";
+      }
+    }
+  </script>
+  <noscript>本网页需要运行javascript</noscript>
+  <div id="root" style="display:none">
+    <div>粘贴网址：</div>
+    <div>
+      <input type="text" id='url'>
+    </div>
+    <div id="send">确认</div>
+    <div id="msg"></div>
+  </div>
+  <script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+  <script src="https://cdn.bootcss.com/IndexedDBShim/3.1.0/indexeddbshim.min.js"></script>
+  <script>
+    $(function () {
+      var DB_NAME = 'library'; // 图书馆
+      var DB_VERSTON = 1; // 不知道版本要来干什么
+      var DB_STORE_NAME = 'books'; // 小说
+
+      var db;
+      function initDb() {
+        console.debug("initDb ...");
+        var req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onsuccess = function (evt) {
+          // Better use "this" than "req" to get the result to avoid problems with
+          // garbage collection.
+          // db = req.result;
+          db = this.result;
+          console.debug("initDb DONE");
+        };
+        req.onerror = function (evt) {
+          console.error("initDb:", evt.target.errorCode);
+        };
+
+        req.onupgradeneeded = function (evt) {
+          console.debug("initDb.onupgradeneeded");
+          var store = evt.currentTarget.result.createObjectStore(
+            DB_STORE_NAME, { keyPath: 'id', autoIncrement: true });
+
+          store.createIndex('url', 'url', { unique: true });
+          store.createIndex('author', 'author', { unique: false });
+          store.createIndex('title', 'title', { unique: false });
+        };
+      }
+      $('#send').on('click', function () {
+        var inputVal = $('#url').val();
+        if (inputVal == '') {
+          $('#msg').html('请输入正确的网址');
+          return false;
+        }
+        $.ajax({
+          url: '/api/catalog',
+          method: 'get',
+          dataType: 'JSON',
+          data: {
+            url: inputVal
+          },
+          success: function (data) {
+            console.log(data);
+          },
+          error: function (error, data) {
+            alert(data);
+          }
+        })
+      })
+
+    })
+  </script>
+</body>
+
+</html>
