@@ -19,7 +19,7 @@ module.exports = {
           const json = [];
           table.each(function(index, val) {
             json.push({
-              url: "http://www.23xs.cc/" + $(val).attr("href"),
+              url: url.replace('index.html',$(val).attr("href")),
               title: $(val).text()
             });
           });
@@ -36,8 +36,7 @@ module.exports = {
           const body = request.text;
           const $ = cheerio.load(body, { decodeEntities: false });
           const title = $("#amain h1").text();
-          const content = $("#contents")
-            .html()
+          const content = $("#contents").html()
             .split("<br>")
             .filter((v, i) => {
               if (v && i) {

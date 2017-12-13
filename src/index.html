@@ -29,127 +29,60 @@
     <div id="msg"></div>
   </div>
   <script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
-  <script src="https://cdn.bootcss.com/IndexedDBShim/3.1.0/indexeddbshim.min.js"></script>
+  <!-- <script src="https://cdn.bootcss.com/IndexedDBShim/3.1.0/indexeddbshim.min.js"></script> -->
+  <script src="https://cdn.bootcss.com/localforage/1.5.5/localforage.min.js"></script>
   <script>
     $(function () {
-      var DB_NAME = 'library'; // 图书馆
-      // var DB_VERSTON = 1; // 不知道版本要来干什么
-      var DB_STORE_NAME = 'books'; // 小说
-      var version;
+      var a = 0;
+      var total = 0;
 
-      var db;
-
-      function initDb() { // 数据库初始化
-        console.debug("initDb ...");
-        var req = indexedDB.open(DB_NAME);
-        req.onsuccess = function (evt) {
-          // Better use "this" than "req" to get the result to avoid problems with
-          // garbage collection.
-          // db = req.result;
-          db = this.result;
-          version = db.version;
-          console.debug("initDb DONE");
-        };
-        req.onerror = function (evt) {
-          console.error("initDb:", evt.target.errorCode);
-        };
-
-        req.onupgradeneeded = function (evt) {
-          console.debug("initDb.onupgradeneeded");
-          var store = evt.currentTarget.result.createObjectStore(
-            DB_STORE_NAME, {
-              keyPath: 'id',
-              autoIncrement: true
-            });
-          store.createIndex('url', 'url', {
-            unique: true
-          });
-          store.createIndex('author', 'author', {
-            unique: false
-          });
-          store.createIndex('title', 'title', {
-            unique: false
-          });
-        };
+      function show() {
+        $('#msg').html(a + '/' + total);
       }
 
-      // function getBook(bookID){
-      //   var objectStore = db.transaction([DB_STORE_NAME]).objectStore(DB_STORE_NAME);
-      //     var request = objectStore.get(bookID);
-      //     request.onerror = function (event) {
-      //       // 错误处理!
-      //     };
-      //     request.onsuccess = function (event) {
-      //       var data = request.result.catalog || [];
-      //       addChapter(data.map(function(v){
+      function addBook(data) {
+        localforage.setItem('books', data).then(function (value) {
+          total = value.catalog.length;
+          value.catalog.forEach((v, i) => {
+            downChapter(v.url, i);
+          })
 
-      //       }))
-      //     };
-      // }
-
-      function createChapterStore(bookID) { // 创建书目章节数据对象（表）
-        console.debug("ChapterStore ...");
-        var req = indexedDB.open(DB_NAME, version + 1);
-        req.onsuccess = function (evt) {
-          // Better use "this" than "req" to get the result to avoid problems with
-          // garbage collection.
-          // db = req.result;
-          db = this.result;
-          console.debug("ChapterStore DONE", db.version);
-          // getBook(bookID);
-          downChapter(bookID);
-        };
-        req.onerror = function (evt) {
-          console.error("ChapterStore:", evt.target.errorCode);
-        };
-
-        req.onupgradeneeded = function (evt) {
-          console.debug("ChapterStore.onupgradeneeded");
-          var store = evt.currentTarget.result.createObjectStore(
-            "chapter" + bookID, {
-              keyPath: 'id',
-              autoIncrement: true
-            });
-          store.createIndex('url', 'url', {
-            unique: true
-          });
-          store.createIndex('chapter', 'chapter', {
-            unique: false
-          });
-        };
+        }).catch(function (err) {
+          // This code runs if there were any errors
+          console.log(err);
+        });
       }
 
-      function addBook(data) { // 新增一本书
-        var bookID;
-        var transaction = db.transaction([DB_STORE_NAME], "readwrite");
-        // 当所有的数据都被增加到数据库时执行一些操作
-        transaction.oncomplete = function (event) {
-          console.log("All done!");
-          db.close();
-          createChapterStore(bookID);
-        };
-
-        transaction.onerror = function (event) {
-          // 不要忘记进行错误处理！
-        };
-
-        var objectStore = transaction.objectStore(DB_STORE_NAME);
-
-        var request = objectStore.put(data);
-        request.onsuccess = function (event) {
-          console.log(event);
-          bookID = event.target.result;
-        };
-        request.onerror = function (event) {
-          console.log(event);
-        }
-
+      function downChapter(url, i) {
+        $.ajax({
+          url: '/api/info',
+          method: 'get',
+          dataType: 'JSON',
+          data: {
+            url: url
+          },
+          success(data) {
+            localforage.setItem('chapter' + i, data).then(v => ++a).then(v => {
+              show();
+              if (v >= total) {
+                console.log('下载完成');
+                createText(total);
+              }
+            })
+          }
+        })
       }
-
-      function addChapter(data){
-
+      function createText(total){
+        var arr = new Array(total).fill(null).map((v,i)=>localforage.getItem('chapter'+i));
+        Promise.all(arr).then(v=>{
+          var text = v.map(val=>`${val.title}\n${val.content.join('\n')}`).join('\n');
+          var blob = new Blob([text], {type : 'text/plain'});
+          var a = document.createElement('a')
+          a.download = 'download';
+          a.href = URL.createObjectURL(blob);
+          a.click();
+        })
       }
-
 
       $('#send').on('click', function () {
         var inputVal = $('#url').val();
@@ -185,7 +118,7 @@
         })
       })
 
-      initDb();
+      // initDb();
     })
   </script>
 </body>
